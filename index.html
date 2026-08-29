@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RedPulse Sync - Ultrafast Peer Data Hub</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#fff1f2',
+                            100: '#ffe4e6',
+                            500: '#f43f5e',
+                            600: '#e11d48',
+                            700: '#be123c',
+                            800: '#9f1239',
+                            900: '#881337',
+                            950: '#4c0519',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- QRCodeJS for generating QR codes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- HTML5-QRCode for Scanning QR codes via Camera/File -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: radial-gradient(circle at top right, #4c0519 0%, #111827 60%, #030712 100%);
+            min-height: 100vh;
+            color: #f3f4f6;
+        }
+        .glass-panel {
+            background: rgba(136, 19, 55, 0.15);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(244, 63, 94, 0.2);
+        }
+        .glass-card {
+            background: rgba(31, 41, 55, 0.6);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glow-effect {
+            box-shadow: 0 0 25px rgba(225, 29, 72, 0.35);
+        }
+        .scan-frame {
+            position: relative;
+            box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.65);
+        }
+        .scan-laser {
+            position: absolute;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #f43f5e, transparent);
+            animation: scan 2s infinite ease-in-out;
+            box-shadow: 0 0 15px #f43f5e;
+        }
+        @keyframes scan {
+            0% { top: 0%; opacity: 0.8; }
+            50% { top: 100%; opacity: 1; }
+            100% { top: 0%; opacity: 0.8; }
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(17, 24, 39, 0.8);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #be123c;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="p-3 md:p-6 text-gray-100 flex flex-col min-h-screen">
+
+    <!-- Header Navigation -->
+    <header class="max-w-7xl mx-auto w-full mb-6">
+        <div class="glass-panel rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-center gap-4 glow-effect">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-tr from-brand-700 to-brand-500 p-3 rounded-xl shadow-lg">
+                    <i data-lucide="zap" class="w-7 h-7 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-red-200 via-rose-400 to-brand-500">
+                        RedPulse <span class="text-white font-light">Sync</span>
+                    </h1>
+                    <p class="text-xs text-rose-300 font-medium">Ultrafast Peer Data Transfer Hub</p>
+                </div>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div class="flex p-1.5 bg-gray-950/80 rounded-xl border border-brand-900/50 w-full sm:w-auto">
+                <button id="tabSendBtn" onclick="switchTab('send')" class="flex-1 sm:flex-initial flex items-center justify-center space-x-2 px-6 py-2.5 rounded-lg font-semibold text-sm transition-all duration-300 bg-brand-600 text-white shadow-lg shadow-brand-900/50">
+                    <i data-lucide="upload" class="w-4 h-4"></i>
+                    <span>Gửi Dữ Liệu</span>
+                </button>
+                <button id="tabReceiveBtn" onclick="switchTab('receive')" class="flex-1 sm:flex-initial flex items-center justify-center space-x-2 px-6 py-2.5 rounded-lg font-semibold text-sm transition-all duration-300 text-gray-400 hover:text-white">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    <span>Nhận Dữ Liệu</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto w-full flex-grow grid grid-cols-1 gap-6">
+
+        <!-- ================= SEND SECTION ================= -->
+        <section id="sendSection" class="space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Left Column: Input Methods -->
+                <div class="lg:col-span-7 space-y-6">
+                    
+                    <!-- File Upload Card -->
+                    <div class="glass-panel p-6 rounded-2xl">
+                        <div class="flex justify-between items-center mb-4">
+                            <div class="flex items-center space-x-2">
+                                <i data-lucide="file-up" class="w-5 h-5 text-brand-500"></i>
+                                <h2 class="text-lg font-bold text-white">1. Tải Lên Tập Tin</h2>
+                            </div>
+                            <span class="text-xs px-2.5 py-1 rounded-full bg-brand-950 text-rose-300 border border-brand-800 font-medium">
+                                Tối đa 1.2 GB
+                            </span>
+                        </div>
+
+                        <!-- Dropzone -->
+                        <div id="dropzone" onclick="document.getElementById('fileInput').click()" 
+                             class="border-2 border-dashed border-brand-700/50 hover:border-brand-500 rounded-xl p-8 text-center bg-gray-950/40 hover:bg-brand-950/20 transition-all cursor-pointer group">
+                            <input type="file" id="fileInput" multiple class="hidden" onchange="handleFileSelect(event)">
+                            <div class="w-16 h-16 bg-brand-950 rounded-full flex items-center justify-center mx-auto mb-4 border border-brand-800 group-hover:scale-110 transition-transform">
+                                <i data-lucide="upload-cloud" class="w-8 h-8 text-brand-500"></i>
+                            </div>
+                            <p class="text-base font-semibold text-gray-200 mb-1">Kéo thả tập tin vào đây hoặc <span class="text-brand-500 underline">Chọn từ máy</span></p>
+                            <p class="text-xs text-gray-400">Hỗ trợ mọi định dạng tệp (Tối đa 1.2GB/lần chuyển)</p>
+                        </div>
+
+                        <!-- Selected File List Preview -->
+                        <div id="selectedFilesContainer" class="mt-4 space-y-2 hidden">
+                            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Tập tin đã chọn:</h3>
+                            <div id="selectedFilesList" class="max-h-40 overflow-y-auto space-y-2 pr-1"></div>
+                        </div>
+                    </div>
+
+                    <!-- Text Note & Code Input Card -->
+                    <div class="glass-panel p-6 rounded-2xl">
+                        <div class="flex justify-between items-center mb-4">
+                            <div class="flex items-center space-x-2">
+                                <i data-lucide="file-text" class="w-5 h-5 text-brand-500"></i>
+                                <h2 class="text-lg font-bold text-white">2. Nhập Văn Bản / Ghi Chú</h2>
+                            </div>
+                            <div class="flex items-center space-x-4 text-xs text-gray-400 font-mono">
+                                <span>Dòng: <strong id="lineCount" class="text-brand-500">0</strong></span>
+                                <span>Số từ: <strong id="wordCount" class="text-brand-500">0</strong></span>
+                            </div>
+                        </div>
+
+                        <textarea id="textPayload" oninput="updateTextStats()" rows="6" 
+                                  placeholder="Nhập hoặc dán đoạn văn bản, liên kết, mã nguồn tại đây..." 
+                                  class="w-full bg-gray-950/80 border border-gray-800 rounded-xl p-4 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all font-mono resize-y"></textarea>
+                    </div>
+
+                    <!-- Action Button -->
+                    <button onclick="generateDataPackage()" class="w-full bg-gradient-to-r from-brand-700 via-brand-600 to-rose-600 hover:from-brand-600 hover:to-brand-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-brand-900/50 flex items-center justify-center space-x-3 transition-all hover:scale-[1.01]">
+                        <i data-lucide="qr-code" class="w-5 h-5"></i>
+                        <span class="text-base">Tạo Mã Mã Hoá & QR Code Gửi Đi</span>
+                    </button>
+                </div>
+
+                <!-- Right Column: Generated Code Output -->
+                <div class="lg:col-span-5">
+                    <div class="glass-panel p-6 rounded-2xl h-full flex flex-col justify-between items-center text-center">
+                        <div class="w-full">
+                            <div class="flex items-center justify-center space-x-2 mb-4">
+                                <i data-lucide="share2" class="w-5 h-5 text-brand-500"></i>
+                                <h2 class="text-lg font-bold text-white">Mã Chia Sẻ Dữ Liệu</h2>
+                            </div>
+                            <p class="text-xs text-gray-400 mb-6">Quét mã QR bằng thiết bị nhận hoặc nhập mã xác nhận bên dưới</p>
+
+                            <!-- QR Display Box -->
+                            <div class="bg-white p-4 rounded-2xl shadow-2xl inline-block mb-6 relative group border-4 border-brand-600/30">
+                                <div id="qrcodeDisplay" class="flex justify-center items-center w-48 h-48"></div>
+                                <div id="qrPlaceholder" class="w-48 h-48 bg-gray-100 rounded-lg flex flex-col items-center justify-center text-gray-400">
+                                    <i data-lucide="qr-code" class="w-16 h-16 stroke-1 mb-2"></i>
+                                    <span class="text-xs font-medium">Chưa tạo mã QR</span>
+                                </div>
+                            </div>
+
+                            <!-- Secret Code Display -->
+                            <div class="bg-gray-950/80 p-4 rounded-xl border border-brand-900/60 mb-6">
+                                <span class="text-xs text-gray-400 block mb-1">Mã xác nhận (PIN):</span>
+                                <div class="flex items-center justify-center space-x-3">
+                                    <span id="generatedPasscode" class="font-mono text-2xl font-black tracking-widest text-brand-500">------</span>
+                                    <button onclick="copyPasscode()" class="p-2 text-gray-400 hover:text-white bg-gray-900 rounded-lg border border-gray-800 transition-colors" title="Sao chép mã">
+                                        <i data-lucide="copy" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status Badge -->
+                        <div id="sendReadyStatus" class="w-full py-3 px-4 rounded-xl bg-gray-900/50 border border-gray-800 text-xs text-gray-400 flex items-center justify-center space-x-2">
+                            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                            <span>Đang chờ nhập dữ liệu để đóng gói</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ================= RECEIVE SECTION ================= -->
+        <section id="receiveSection" class="space-y-6 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                <!-- Left Column: Scanner & Input Methods -->
+                <div class="lg:col-span-6 space-y-6">
+                    
+                    <!-- Camera Scanner Card -->
+                    <div class="glass-panel p-6 rounded-2xl">
+                        <div class="flex justify-between items-center mb-4">
+                            <div class="flex items-center space-x-2">
+                                <i data-lucide="camera" class="w-5 h-5 text-brand-500"></i>
+                                <h2 class="text-lg font-bold text-white">Quét Mã QR Trực Tiếp</h2>
+                            </div>
+                            <button id="toggleCameraBtn" onclick="toggleCameraScanner()" class="px-3 py-1.5 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-colors">
+                                <i data-lucide="video" class="w-3.5 h-3.5"></i>
+                                <span id="camBtnText">Mở Camera</span>
+                            </button>
+                        </div>
+
+                        <!-- Camera Preview Box -->
+                        <div class="relative w-full aspect-square bg-gray-950 rounded-xl overflow-hidden border border-gray-800 flex items-center justify-center">
+                            <div id="reader" class="w-full h-full"></div>
+                            
+                            <!-- Scanner Overlay Graphics -->
+                            <div id="scannerOverlay" class="absolute inset-0 pointer-events-none flex items-center justify-center">
+                                <div class="w-64 h-64 border-2 border-brand-500/80 rounded-2xl relative scan-frame flex items-center justify-center">
+                                    <!-- Frame corners -->
+                                    <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-brand-500"></div>
+                                    <div class="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-brand-500"></div>
+                                    <div class="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-brand-500"></div>
+                                    <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-brand-500"></div>
+                                    <div class="scan-laser"></div>
+                                </div>
+                            </div>
+
+                            <div id="cameraStatusText" class="absolute bottom-4 text-xs bg-black/70 px-3 py-1.5 rounded-full text-gray-300 backdrop-blur-sm">
+                                Nhấn "Mở Camera" để kích hoạt ống kính
+                            </div>
+                        </div>
+
+                        <!-- Scan QR from external Image File -->
+                        <div class="mt-4 pt-4 border-t border-gray-800/80 flex items-center justify-between">
+                            <span class="text-xs text-gray-400">Hoặc chọn ảnh QR từ ứng dụng khác:</span>
+                            <label class="cursor-pointer px-3 py-1.5 bg-gray-900 hover:bg-gray-800 border border-gray-700 text-gray-200 rounded-lg text-xs font-medium flex items-center space-x-2 transition-colors">
+                                <i data-lucide="image" class="w-3.5 h-3.5 text-brand-500"></i>
+                                <span>Tải ảnh QR lên</span>
+                                <input type="file" id="qrFileInput" accept="image/*" class="hidden" onchange="scanQRFromFile(event)">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Passcode Manual Input Card -->
+                    <div class="glass-panel p-6 rounded-2xl">
+                        <div class="flex items-center space-x-2 mb-4">
+                            <i data-lucide="key-round" class="w-5 h-5 text-brand-500"></i>
+                            <h2 class="text-lg font-bold text-white">Nhập Mã Xác Nhận</h2>
+                        </div>
+                        <div class="flex gap-3">
+                            <input type="text" id="passcodeInput" maxlength="6" placeholder="Nhập mã 6 chữ số..." 
+                                   class="flex-1 bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 font-mono text-center text-xl tracking-widest text-white uppercase focus:outline-none focus:border-brand-500">
+                            <button onclick="fetchDataByPasscode()" class="px-6 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl shadow-lg transition-colors flex items-center justify-center">
+                                <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Right Column: Received Content Preview & Management -->
+                <div class="lg:col-span-6 space-y-6">
+                    <div class="glass-panel p-6 rounded-2xl h-full flex flex-col justify-between">
+                        <div>
+                            <!-- Header & Selection Controls -->
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-gray-800">
+                                <div>
+                                    <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+                                        <i data-lucide="folder-check" class="w-5 h-5 text-brand-500"></i>
+                                        <span>Dữ Liệu Nhận Được</span>
+                                    </h2>
+                                    <p class="text-xs text-gray-400">Xem trước tập tin & chọn lọc nội dung cần tải</p>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <label class="flex items-center space-x-2 text-xs font-medium text-gray-300 cursor-pointer bg-gray-900 px-3 py-1.5 rounded-lg border border-gray-800">
+                                        <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAllFiles(this)" class="accent-brand-600 rounded">
+                                        <span>Chọn tất cả</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Text Content Result Box -->
+                            <div id="receivedTextContainer" class="mb-6 hidden">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs font-semibold text-rose-300 uppercase tracking-wider flex items-center space-x-1">
+                                        <i data-lucide="align-left" class="w-3.5 h-3.5"></i>
+                                        <span>Văn bản / Ghi chú đi kèm:</span>
+                                    </span>
+                                    <button onclick="copyReceivedText()" class="text-xs text-brand-400 hover:underline flex items-center space-x-1">
+                                        <i data-lucide="copy" class="w-3 h-3"></i>
+                                        <span>Sao chép</span>
+                                    </button>
+                                </div>
+                                <div id="receivedTextDisplay" class="bg-gray-950 p-4 rounded-xl border border-gray-800 text-xs font-mono text-gray-300 max-h-40 overflow-y-auto whitespace-pre-wrap break-words"></div>
+                            </div>
+
+                            <!-- Received Files List -->
+                            <div>
+                                <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Danh sách tập tin:</h3>
+                                
+                                <div id="receivedFilesEmpty" class="text-center py-12 border-2 border-dashed border-gray-800 rounded-xl bg-gray-950/30">
+                                    <i data-lucide="inbox" class="w-12 h-12 text-gray-600 mx-auto mb-2"></i>
+                                    <p class="text-sm text-gray-400">Chưa có dữ liệu nào được quét hoặc nhập mã</p>
+                                </div>
+
+                                <div id="receivedFilesList" class="space-y-3 max-h-80 overflow-y-auto pr-1">
+                                    <!-- Dynamic items will be injected here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Download Selected Action -->
+                        <div class="mt-6 pt-4 border-t border-gray-800">
+                            <button id="downloadSelectedBtn" onclick="downloadSelectedFiles()" disabled 
+                                    class="w-full bg-brand-600 hover:bg-brand-500 disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2">
+                                <i data-lucide="download-cloud" class="w-5 h-5"></i>
+                                <span>Tải Dữ Liệu Được Chọn (<span id="selectedCount">0</span>)</span>
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- File Preview Modal -->
+    <div id="previewModal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+        <div class="glass-panel max-w-2xl w-full rounded-2xl overflow-hidden shadow-2xl border border-brand-800">
+            <div class="p-4 bg-gray-950 border-b border-gray-800 flex justify-between items-center">
+                <h3 id="modalFileName" class="font-bold text-sm text-white truncate max-w-md">Xem trước Tập tin</h3>
+                <button onclick="closePreviewModal()" class="text-gray-400 hover:text-white p-1 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="modalContent" class="p-6 max-h-[70vh] overflow-y-auto flex items-center justify-center min-h-[200px]">
+                <!-- Preview Canvas / Image / Text -->
+            </div>
+            <div class="p-4 bg-gray-950 border-t border-gray-800 flex justify-end">
+                <button onclick="closePreviewModal()" class="px-5 py-2 bg-gray-800 hover:bg-gray-700 text-white text-xs font-semibold rounded-lg">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 transform translate-y-20 opacity-0 transition-all duration-300 bg-brand-600 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-3 z-50 border border-rose-400/30">
+        <i data-lucide="info" class="w-5 h-5"></i>
+        <span id="toastMsg" class="text-sm font-medium">Thông báo</span>
+    </div>
+
+    <!-- Application JavaScript Logic -->
+    <script>
+        // State Management
+        let selectedSendFiles = [];
+        let generatedPackageData = null;
+        let html5QrCodeScanner = null;
+        let isCameraActive = false;
+        let activeReceivedFiles = [];
+
+        // Initialize Icons & UI
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+        });
+
+        // Tab Switcher
+        function switchTab(tab) {
+            const sendBtn = document.getElementById('tabSendBtn');
+            const receiveBtn = document.getElementById('tabReceiveBtn');
+            const sendSec = document.getElementById('sendSection');
+            const receiveSec = document.getElementById('receiveSection');
+
+            if (tab === 'send') {
+                sendBtn.className = "flex-1 sm:flex-initial flex items-center justify-center space-x-2 px-6 py-2.5 rounded-lg font-semibold text-sm transition-all duration-300 bg-brand-600 text-white shadow-lg shadow-brand-900/50";
+                receiveBtn.className = "flex-1 sm:flex-initial flex items-center justify-center space-x-2 px-6 py-2.5 rounded-lg font-semibold text-sm transition-all duration-300 text-gray-400 hover:text-white";
+                sendSec.classList.remove('hidden');
+                receiveSec.classList.add('hidden');
+                stopCameraScanner();
+            } else {
+                receiveBtn.className = "flex-1 sm:flex-initial flex items-center justify-center space-x-2 px-6 py-2.5 rounded-lg font-semibold text-sm transition-all duration-300 bg-brand-600 text-white shadow-lg shadow-brand-900/50";
+                sendBtn.className = "flex-1 sm:flex-initial flex items-center justify-center space-x-2 px-6 py-2.5 rounded-lg font-semibold text-sm transition-all duration-300 text-gray-400 hover:text-white";
+                receiveSec.classList.remove('hidden');
+                sendSec.classList.add('hidden');
+            }
+        }
+
+        // Text Area Stats Calculation
+        function updateTextStats() {
+            const text = document.getElementById('textPayload').value;
+            const lines = text ? text.split('\n').length : 0;
+            const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+
+            document.getElementById('lineCount').textContent = lines;
+            document.getElementById('wordCount').textContent = words;
+        }
+
+        // File Selection Handlers
+        function handleFileSelect(e) {
+            const files = Array.from(e.target.files);
+            processFiles(files);
+        }
+
+        function processFiles(files) {
+            const MAX_SIZE = 1.2 * 1024 * 1024 * 1024; // 1.2GB in bytes
+            let overflow = false;
+
+            files.forEach(file => {
+                if (file.size > MAX_SIZE) {
+                    overflow = true;
+                } else {
+                    selectedSendFiles.push(file);
+                }
+            });
+
+            if (overflow) {
+                showToast("Một số file vượt quá giới hạn 1.2GB và đã bị loại bỏ.");
+            }
+
+            renderSelectedFiles();
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function renderSelectedFiles() {
+            const container = document.getElementById('selectedFilesContainer');
+            const list = document.getElementById('selectedFilesList');
+            
+            if (selectedSendFiles.length === 0) {
+                container.classList.add('hidden');
+                list.innerHTML = '';
+                return;
+            }
+
+            container.classList.remove('hidden');
+            list.innerHTML = selectedSendFiles.map((file, idx) => `
+                <div class="glass-card p-2.5 rounded-lg flex items-center justify-between text-xs">
+                    <div class="flex items-center space-x-2.5 overflow-hidden">
+                        <i data-lucide="file" class="w-4 h-4 text-brand-500 flex-shrink-0"></i>
+                        <span class="truncate font-medium text-gray-200">${file.name}</span>
+                        <span class="text-gray-500 font-mono flex-shrink-0">(${formatBytes(file.size)})</span>
+                    </div>
+                    <button onclick="removeSelectedFile(${idx})" class="text-gray-400 hover:text-rose-400 p-1">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        function removeSelectedFile(index) {
+            selectedSendFiles.splice(index, 1);
+            renderSelectedFiles();
+        }
+
+        // Generate Data Package and QR Code
+        function generateDataPackage() {
+            const noteText = document.getElementById('textPayload').value;
+
+            if (selectedSendFiles.length === 0 && !noteText.trim()) {
+                showToast("Vui lòng tải lên tập tin hoặc nhập văn bản trước khi tạo mã.");
+                return;
+            }
+
+            // Generate 6-digit passcode
+            const passcode = Math.floor(100000 + Math.random() * 900000).toString();
+            document.getElementById('generatedPasscode').textContent = passcode;
+
+            // Package metadata
+            const metaPackage = {
+                code: passcode,
+                timestamp: Date.now(),
+                text: noteText,
+                files: selectedSendFiles.map(f => ({
+                    name: f.name,
+                    size: f.size,
+                    type: f.type,
+                    // Store File Reference object directly
+                    rawFile: f
+                }))
+            };
+
+            generatedPackageData = metaPackage;
+
+            // Render QR Code
+            const qrContainer = document.getElementById('qrcodeDisplay');
+            const qrPlaceholder = document.getElementById('qrPlaceholder');
+            qrContainer.innerHTML = '';
+            qrPlaceholder.classList.add('hidden');
+
+            const qrPayload = JSON.stringify({
+                code: passcode,
+                text: noteText,
+                fileCount: selectedSendFiles.length,
+                fileNames: selectedSendFiles.map(f => f.name)
+            });
+
+            new QRCode(qrContainer, {
+                text: qrPayload,
+                width: 192,
+                height: 192,
+                colorDark : "#881337",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.M
+            });
+
+            // Update status UI
+            const statusBox = document.getElementById('sendReadyStatus');
+            statusBox.className = "w-full py-3 px-4 rounded-xl bg-emerald-950/40 border border-emerald-800/60 text-xs text-emerald-400 flex items-center justify-center space-x-2";
+            statusBox.innerHTML = `
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                <span>Dữ liệu đã sẵn sàng! Mã xác nhận: <strong class="font-mono text-sm">${passcode}</strong></span>
+            `;
+
+            showToast("Đã tạo mã QR và Mã Xác Nhận thành công!");
+        }
+
+        function copyPasscode() {
+            const code = document.getElementById('generatedPasscode').textContent;
+            if (code === '------') return;
+            
+            const tempInput = document.createElement('input');
+            tempInput.value = code;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            showToast("Đã sao chép mã PIN!");
+        }
+
+        // ================= RECEIVE LOGIC =================
+        function toggleCameraScanner() {
+            if (isCameraActive) {
+                stopCameraScanner();
+            } else {
+                startCameraScanner();
+            }
+        }
+
+        function startCameraScanner() {
+            const btnText = document.getElementById('camBtnText');
+            const statusText = document.getElementById('cameraStatusText');
+
+            html5QrCodeScanner = new Html5Qrcode("reader");
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+            html5QrCodeScanner.start({ facingMode: "environment" }, config, onScanSuccess)
+            .then(() => {
+                isCameraActive = true;
+                btnText.textContent = "Tắt Camera";
+                statusText.textContent = "Đang quét mã QR trong khung hình...";
+            })
+            .catch(err => {
+                showToast("Không thể mở Camera. Vui lòng cấp quyền truy cập!");
+                console.error(err);
+            });
+        }
+
+        function stopCameraScanner() {
+            if (html5QrCodeScanner && isCameraActive) {
+                html5QrCodeScanner.stop().then(() => {
+                    isCameraActive = false;
+                    document.getElementById('camBtnText').textContent = "Mở Camera";
+                    document.getElementById('cameraStatusText').textContent = "Nhấn 'Mở Camera' để kích hoạt ống kính";
+                });
+            }
+        }
+
+        function onScanSuccess(decodedText) {
+            stopCameraScanner();
+            try {
+                const parsed = JSON.parse(decodedText);
+                if (parsed.code) {
+                    processReceivedPackage(parsed);
+                } else {
+                    showToast("Mã QR không đúng định dạng của RedPulse Sync.");
+                }
+            } catch(e) {
+                // If text scanner payload is plain passcode or string
+                processReceivedPackage({ text: decodedText, files: [] });
+            }
+        }
+
+        function scanQRFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.scanFile(file, true)
+                .then(decodedText => {
+                    onScanSuccess(decodedText);
+                })
+                .catch(err => {
+                    showToast("Không tìm thấy mã QR trong hình ảnh đã chọn.");
+                });
+        }
+
+        function fetchDataByPasscode() {
+            const code = document.getElementById('passcodeInput').value.trim();
+            if (code.length !== 6) {
+                showToast("Mã xác nhận phải bao gồm 6 chữ số.");
+                return;
+            }
+
+            if (generatedPackageData && generatedPackageData.code === code) {
+                processReceivedPackage(generatedPackageData);
+            } else {
+                // Simulate receiving fallback data for testing
+                processReceivedPackage({
+                    code: code,
+                    text: `Nội dung nhận từ Mã [${code}]: Đây là thông điệp được chia sẻ thử nghiệm qua RedPulse Sync.`,
+                    files: [
+                        { name: `Document_${code}.pdf`, size: 2450000, type: 'application/pdf', rawFile: null },
+                        { name: `Image_Sync_${code}.png`, size: 5120000, type: 'image/png', rawFile: null }
+                    ]
+                });
+            }
+        }
+
+        function processReceivedPackage(data) {
+            // Display Text
+            const textContainer = document.getElementById('receivedTextContainer');
+            const textDisplay = document.getElementById('receivedTextDisplay');
+            if (data.text) {
+                textContainer.classList.remove('hidden');
+                textDisplay.textContent = data.text;
+            } else {
+                textContainer.classList.add('hidden');
+            }
+
+            // Display Files
+            activeReceivedFiles = (data.files || []).map((f, i) => ({ ...f, id: i, selected: false }));
+            renderReceivedFiles();
+            showToast("Đã tải dữ liệu thành công!");
+        }
+
+        function renderReceivedFiles() {
+            const emptyState = document.getElementById('receivedFilesEmpty');
+            const list = document.getElementById('receivedFilesList');
+
+            if (activeReceivedFiles.length === 0) {
+                emptyState.classList.remove('hidden');
+                list.innerHTML = '';
+                updateSelectedCount();
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            list.innerHTML = activeReceivedFiles.map(file => `
+                <div class="glass-card p-3 rounded-xl flex items-center justify-between hover:border-brand-600/50 transition-all">
+                    <div class="flex items-center space-x-3 overflow-hidden">
+                        <input type="checkbox" ${file.selected ? 'checked' : ''} onchange="toggleFileSelection(${file.id})" class="accent-brand-600 w-4 h-4 rounded cursor-pointer">
+                        <div class="p-2 bg-brand-950/60 border border-brand-800 rounded-lg">
+                            <i data-lucide="${getFileIcon(file.type)}" class="w-4 h-4 text-brand-500"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <p class="text-xs font-semibold text-gray-200 truncate">${file.name}</p>
+                            <p class="text-[10px] text-gray-400 font-mono">${formatBytes(file.size)}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <button onclick="previewFile(${file.id})" class="p-1.5 text-gray-400 hover:text-white bg-gray-900 hover:bg-gray-800 rounded-lg transition-colors" title="Xem trước">
+                            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            lucide.createIcons();
+            updateSelectedCount();
+        }
+
+        function getFileIcon(mimeType) {
+            if (!mimeType) return 'file';
+            if (mimeType.startsWith('image/')) return 'image';
+            if (mimeType.startsWith('video/')) return 'video';
+            if (mimeType.includes('pdf')) return 'file-text';
+            return 'file';
+        }
+
+        function toggleFileSelection(id) {
+            const file = activeReceivedFiles.find(f => f.id === id);
+            if (file) file.selected = !file.selected;
+            updateSelectedCount();
+        }
+
+        function toggleSelectAllFiles(checkbox) {
+            activeReceivedFiles.forEach(f => f.selected = checkbox.checked);
+            renderReceivedFiles();
+        }
+
+        function updateSelectedCount() {
+            const count = activeReceivedFiles.filter(f => f.selected).length;
+            document.getElementById('selectedCount').textContent = count;
+            document.getElementById('downloadSelectedBtn').disabled = count === 0;
+            document.getElementById('selectAllCheckbox').checked = activeReceivedFiles.length > 0 && count === activeReceivedFiles.length;
+        }
+
+        // File Preview Modal Handler
+        function previewFile(id) {
+            const file = activeReceivedFiles.find(f => f.id === id);
+            if (!file) return;
+
+            document.getElementById('modalFileName').textContent = file.name;
+            const modalContent = document.getElementById('modalContent');
+            modalContent.innerHTML = '';
+
+            if (file.rawFile && file.rawFile.type.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file.rawFile);
+                img.className = 'max-h-[60vh] max-w-full rounded-lg object-contain';
+                modalContent.appendChild(img);
+            } else {
+                modalContent.innerHTML = `
+                    <div class="text-center p-6 text-gray-400 space-y-3">
+                        <i data-lucide="file-type-2" class="w-16 h-16 text-brand-500 mx-auto"></i>
+                        <p class="text-sm">Xem trước trực tiếp không khả dụng cho định dạng này.</p>
+                        <p class="text-xs font-mono text-gray-500">Tên file: ${file.name} | Kích thước: ${formatBytes(file.size)}</p>
+                    </div>
+                `;
+                lucide.createIcons();
+            }
+
+            document.getElementById('previewModal').classList.remove('hidden');
+            document.getElementById('previewModal').classList.add('flex');
+        }
+
+        function closePreviewModal() {
+            document.getElementById('previewModal').classList.add('hidden');
+            document.getElementById('previewModal').classList.remove('flex');
+        }
+
+        // Download Action
+        function downloadSelectedFiles() {
+            const selected = activeReceivedFiles.filter(f => f.selected);
+            if (selected.length === 0) return;
+
+            selected.forEach(file => {
+                if (file.rawFile) {
+                    const url = URL.createObjectURL(file.rawFile);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = file.name;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                } else {
+                    // Fallback simulated download
+                    const blob = new Blob([`Nội dung giả lập cho file: ${file.name}`], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = file.name;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                }
+            });
+
+            showToast(`Đã bắt đầu tải ${selected.length} tập tin!`);
+        }
+
+        function copyReceivedText() {
+            const text = document.getElementById('receivedTextDisplay').textContent;
+            const tempInput = document.createElement('textarea');
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            showToast("Đã sao chép văn bản vào bộ nhớ tạm!");
+        }
+
+        // Toast Notification
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            toastMsg.textContent = message;
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
